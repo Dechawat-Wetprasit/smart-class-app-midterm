@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,12 +22,73 @@ class _LoginScreenState extends State<LoginScreen> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   final FirestoreService _firestoreService = FirestoreService();
   bool _isLoading = false;
+  bool _isNameLocked = false;
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _studentIdController.addListener(_onStudentIdChanged);
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _studentIdController.removeListener(_onStudentIdChanged);
     _studentIdController.dispose();
     _nameController.dispose();
     super.dispose();
+  }
+
+  void _onStudentIdChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 1000), () {
+      final id = _studentIdController.text.trim();
+      if (id.length >= 3) {
+        _checkExistingUser(id);
+      } else if (id.isEmpty) {
+        setState(() {
+          _isNameLocked = false;
+          _nameController.clear();
+        });
+      }
+    });
+  }
+
+  Future<void> _checkExistingUser(String studentId) async {
+    try {
+      // Check local DB
+      var user = await _dbHelper.getUser(studentId);
+      
+      // If not in local, check Firestore
+      if (user == null) {
+        final firestoreUser = await _firestoreService.getUser(studentId);
+        if (firestoreUser != null) {
+          user = UserProfile(
+            studentId: firestoreUser['studentId'],
+            name: firestoreUser['name'],
+          );
+        }
+      }
+
+      if (user != null && mounted) {
+        setState(() {
+          _nameController.text = user!.name;
+          _isNameLocked = true;
+        });
+        AppNotification.showSnackBar(
+          context, 
+          'Welcome back, ${user.name}!', 
+          icon: Icons.face_rounded,
+        );
+      } else if (mounted) {
+        setState(() {
+          _isNameLocked = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Check user error: $e');
+    }
   }
 
   Future<void> _login() async {
@@ -211,13 +273,24 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: 8),
                               TextField(
                                 controller: _nameController,
-                                style: const TextStyle(color: Colors.white),
+                                readOnly: _isNameLocked,
+                                style: TextStyle(
+                                  color: _isNameLocked ? Colors.white70 : Colors.white,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'Enter your name',
                                   hintStyle: TextStyle(
                                       color: Colors.white.withValues(alpha: 0.3)),
-                                  prefixIcon: Icon(Icons.person_rounded,
-                                      color: AppTheme.accentBlue),
+                                  prefixIcon: Icon(
+                                    Icons.person_rounded,
+                                    color: _isNameLocked ? AppTheme.accentGreen : AppTheme.accentBlue,
+                                  ),
+                                  suffixIcon: _isNameLocked 
+                                    ? const Tooltip(
+                                        message: 'ID already registered',
+                                        child: Icon(Icons.verified_user_rounded, color: AppTheme.accentGreen, size: 20),
+                                      )
+                                    : null,
                                 ),
                               ),
                             ],
