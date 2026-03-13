@@ -76,10 +76,9 @@ class _LoginScreenState extends State<LoginScreen> {
           _nameController.text = user!.name;
           _isNameLocked = true;
         });
-        AppNotification.showSnackBar(
+        AppNotification.showSuccess(
           context, 
           'Welcome back, ${user.name}!', 
-          icon: Icons.face_rounded,
         );
       } else if (mounted) {
         setState(() {
