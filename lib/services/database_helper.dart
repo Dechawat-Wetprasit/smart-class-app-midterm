@@ -38,16 +38,23 @@ class DatabaseHelper {
       return await factory.openDatabase(
         'smart_class.db',
         options: OpenDatabaseOptions(
-          version: 1,
+        options: OpenDatabaseOptions(
+          version: 2,
           onCreate: _onCreate,
+          onUpgrade: _onUpgrade,
+        ),
         ),
       );
     } else {
       String path = join(await getDatabasesPath(), 'smart_class.db');
       return await openDatabase(
         path,
-        version: 1,
+      return await openDatabase(
+        path,
+        version: 2,
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+      );
       );
     }
   }
@@ -81,6 +88,17 @@ class DatabaseHelper {
         createdAt TEXT NOT NULL
       )
     ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+          studentId TEXT PRIMARY KEY,
+          name TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   // Insert a new check-in record
