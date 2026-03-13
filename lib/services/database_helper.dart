@@ -38,23 +38,18 @@ class DatabaseHelper {
       return await factory.openDatabase(
         'smart_class.db',
         options: OpenDatabaseOptions(
-        options: OpenDatabaseOptions(
           version: 2,
           onCreate: _onCreate,
           onUpgrade: _onUpgrade,
-        ),
         ),
       );
     } else {
       String path = join(await getDatabasesPath(), 'smart_class.db');
       return await openDatabase(
         path,
-      return await openDatabase(
-        path,
         version: 2,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
-      );
       );
     }
   }
